@@ -34,6 +34,21 @@
     "variables": {},
     "resources": [
         {
+            "type": "Microsoft.Compute/disks",
+            "apiVersion": "2023-04-02",
+            "name": "WEB1-DATA1",
+            "location": "eastus2",
+            "sku": {
+                "name": "StandardSSD_LRS"
+            },
+            "properties": {
+                "creationData": {
+                    "createOption": "Empty"
+                },
+                "diskSizeGB": 16
+            }
+        },
+        {
             "type": "Microsoft.Compute/sshPublicKeys",
             "apiVersion": "2024-11-01",
             "name": "[parameters('sshPublicKeys_WEB1_key_name')]",
@@ -176,7 +191,7 @@
             "name": "[parameters('virtualMachines_WEB1_name')]",
             "location": "eastus2",
             "dependsOn": [
-                "[resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaces_web1877_z1_name'))]"
+                "[resourceId('Microsoft.Compute/disks', 'WEB1-DATA1')]"
             ],
             "zones": [
                 "1"
@@ -201,8 +216,7 @@
                         "createOption": "FromImage",
                         "caching": "ReadWrite",
                         "managedDisk": {
-                            "storageAccountType": "Premium_LRS",
-                            "id": "[resourceId('Microsoft.Compute/disks', concat(parameters('virtualMachines_WEB1_name'), '_OsDisk_1_a1951b70915b40d682e77d7189f05b41'))]"
+                            "storageAccountType": "Premium_LRS"
                         },
                         "deleteOption": "Delete",
                         "diskSizeGB": 30
@@ -248,8 +262,7 @@
                         }
                     },
                     "secrets": [],
-                    "allowExtensionOperations": true,
-                    "requireGuestProvisionSignal": true
+                    "allowExtensionOperations": true
                 },
                 "securityProfile": {
                     "uefiSettings": {
