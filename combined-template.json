@@ -1,0 +1,727 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "virtualMachines_WEB1_name": {
+            "defaultValue": "WEB1",
+            "type": "String"
+        },
+        "virtualMachines_WEB2_name": {
+            "defaultValue": "WEB2",
+            "type": "String"
+        },
+        "sshPublicKeys_WEB1_key_name": {
+            "defaultValue": "WEB1_key",
+            "type": "String"
+        },
+        "sshPublicKeys_WEB1_key_0123_name": {
+            "defaultValue": "WEB1_key_0123",
+            "type": "String"
+        },
+        "sshPublicKeys_WEB2_key_name": {
+            "defaultValue": "WEB2_key",
+            "type": "String"
+        },
+        "sshPublicKeys_WEB2_key_0123_name": {
+            "defaultValue": "WEB2_key_0123",
+            "type": "String"
+        },
+        "publicIPAddresses_WEB1_ip_name": {
+            "defaultValue": "WEB1-ip",
+            "type": "String"
+        },
+        "publicIPAddresses_WEB2_ip_name": {
+            "defaultValue": "WEB2-ip",
+            "type": "String"
+        },
+        "virtualNetworks_VNET_LAB_name": {
+            "defaultValue": "VNET-LAB",
+            "type": "String"
+        },
+        "networkInterfaces_web1_z1_name": {
+            "defaultValue": "web1877_z1",
+            "type": "String"
+        },
+        "networkInterfaces_web2_z1_name": {
+            "defaultValue": "web2_z1",
+            "type": "String"
+        },
+        "networkSecurityGroups_NSG_WEB_name": {
+            "defaultValue": "NSG-WEB",
+            "type": "String"
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "type": "Microsoft.Network/publicIPAddresses",
+            "apiVersion": "2023-04-01",
+            "name": "myLBPublicIP",
+            "location": "eastus2",
+            "sku": {
+                "name": "Standard"
+            },
+            "zones": ["1"],
+            "properties": {
+                "publicIPAllocationMethod": "Static"
+            }
+        },
+        {
+        "type": "Microsoft.Network/loadBalancers",
+        "apiVersion": "2023-04-01",
+        "name": "WEB1and2-loadbalancer",
+        "location": "eastus2",
+        "sku": {
+            "name": "Standard"
+        },
+        "zones": ["1"],
+        "dependsOn": [
+            "[resourceId('Microsoft.Network/publicIPAddresses', 'myLBPublicIP')]"
+        ],
+        "properties": {
+            "frontendIPConfigurations": [
+            {
+                "name": "loadbalancer-Frontend",
+                "properties": {
+                "publicIPAddress": {
+                    "id": "[resourceId('Microsoft.Network/publicIPAddresses', 'myLBPublicIP')]"
+                }
+                }
+            }
+            ],
+            "backendAddressPools": [
+            {
+                "name": "loadbalancer-Backend"
+            }
+            ],
+            "probes": [
+            {
+                "name": "loadbalancer-Probe",
+                "properties": {
+                "protocol": "Tcp",
+                "port": 80,
+                "intervalInSeconds": 15,
+                "numberOfProbes": 2
+                }
+            }
+            ],
+            "loadBalancingRules": [
+            {
+                "name": "loadbalancer-Rules",
+                "properties": {
+                "frontendIPConfiguration": {
+                    "id": "[concat(resourceId('Microsoft.Network/loadBalancers', 'WEB1and2-loadbalancer'), '/frontendIPConfigurations/loadbalancer-Frontend')]"
+                },
+                "backendAddressPool": {
+                    "id": "[concat(resourceId('Microsoft.Network/loadBalancers', 'WEB1and2-loadbalancer'), '/backendAddressPools/loadbalancer-Backend')]"
+                },
+                "probe": {
+                    "id": "[concat(resourceId('Microsoft.Network/loadBalancers', 'WEB1and2-loadbalancer'), '/probes/loadbalancer-Probe')]"
+                },
+                "protocol": "Tcp",
+                "frontendPort": 80,
+                "backendPort": 80,
+                "idleTimeoutInMinutes": 4,
+                "loadDistribution": "Default"
+                }
+            }
+            ]
+        }
+        },
+
+        {
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "apiVersion": "2024-07-01",
+            "name": "[parameters('networkSecurityGroups_NSG_WEB_name')]",
+            "location": "eastus2",
+            "properties": {
+                "securityRules": [
+                    {
+                        "name": "ALLOW-SSH",
+                        "id": "[resourceId('Microsoft.Network/networkSecurityGroups/securityRules', parameters('networkSecurityGroups_NSG_WEB_name'), 'ALLOW-SSH')]",
+                        "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+                        "properties": {
+                            "protocol": "TCP",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "22",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 100,
+                            "direction": "Inbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [],
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": []
+                        }
+                    },
+                    {
+                        "name": "ALLOW_HTTP",
+                        "id": "[resourceId('Microsoft.Network/networkSecurityGroups/securityRules', parameters('networkSecurityGroups_NSG_WEB_name'), 'ALLOW_HTTP')]",
+                        "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+                        "properties": {
+                            "protocol": "TCP",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "80",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 101,
+                            "direction": "Inbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [],
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": []
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+            "apiVersion": "2024-07-01",
+            "name": "[concat(parameters('networkSecurityGroups_NSG_WEB_name'), '/ALLOW-SSH')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_NSG_WEB_name'))]"
+            ],
+            "properties": {
+                "protocol": "TCP",
+                "sourcePortRange": "*",
+                "destinationPortRange": "22",
+                "sourceAddressPrefix": "*",
+                "destinationAddressPrefix": "*",
+                "access": "Allow",
+                "priority": 100,
+                "direction": "Inbound",
+                "sourcePortRanges": [],
+                "destinationPortRanges": [],
+                "sourceAddressPrefixes": [],
+                "destinationAddressPrefixes": []
+            }
+        },
+        {
+            "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+            "apiVersion": "2024-07-01",
+            "name": "[concat(parameters('networkSecurityGroups_NSG_WEB_name'), '/ALLOW_HTTP')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_NSG_WEB_name'))]"
+            ],
+            "properties": {
+                "protocol": "TCP",
+                "sourcePortRange": "*",
+                "destinationPortRange": "80",
+                "sourceAddressPrefix": "*",
+                "destinationAddressPrefix": "*",
+                "access": "Allow",
+                "priority": 101,
+                "direction": "Inbound",
+                "sourcePortRanges": [],
+                "destinationPortRanges": [],
+                "sourceAddressPrefixes": [],
+                "destinationAddressPrefixes": []
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks",
+            "apiVersion": "2024-07-01",
+            "name": "[parameters('virtualNetworks_VNET_LAB_name')]",
+            "location": "eastus2",
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": [
+                        "10.0.0.0/16"
+                    ]
+                },
+                "encryption": {
+                    "enabled": false,
+                    "enforcement": "AllowUnencrypted"
+                },
+                "privateEndpointVNetPolicies": "Disabled",
+                "subnets": [
+                    {
+                        "name": "default",
+                        "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_VNET_LAB_name'), 'default')]",
+                        "properties": {
+                            "addressPrefixes": [
+                                "10.0.0.0/24"
+                            ],
+                            "delegations": [],
+                            "privateEndpointNetworkPolicies": "Disabled",
+                            "privateLinkServiceNetworkPolicies": "Enabled"
+                        },
+                        "type": "Microsoft.Network/virtualNetworks/subnets"
+                    },
+                    {
+                        "name": "SUBNET-WEB",
+                        "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_VNET_LAB_name'), 'SUBNET-WEB')]",
+                        "properties": {
+                            "addressPrefixes": [
+                                "10.0.1.0/24"
+                            ],
+                            "delegations": [],
+                            "privateEndpointNetworkPolicies": "Disabled",
+                            "privateLinkServiceNetworkPolicies": "Enabled"
+                        },
+                        "type": "Microsoft.Network/virtualNetworks/subnets"
+                    }
+                ],
+                "virtualNetworkPeerings": [],
+                "enableDdosProtection": false
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks/subnets",
+            "apiVersion": "2024-07-01",
+            "name": "[concat(parameters('virtualNetworks_VNET_LAB_name'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_VNET_LAB_name'))]"
+            ],
+            "properties": {
+                "addressPrefixes": [
+                    "10.0.0.0/24"
+                ],
+                "delegations": [],
+                "privateEndpointNetworkPolicies": "Disabled",
+                "privateLinkServiceNetworkPolicies": "Enabled"
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks/subnets",
+            "apiVersion": "2024-07-01",
+            "name": "[concat(parameters('virtualNetworks_VNET_LAB_name'), '/SUBNET-WEB')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_VNET_LAB_name'))]"
+            ],
+            "properties": {
+                "addressPrefixes": [
+                    "10.0.1.0/24"
+                ],
+                "delegations": [],
+                "privateEndpointNetworkPolicies": "Disabled",
+                "privateLinkServiceNetworkPolicies": "Enabled"
+            }
+        },
+
+
+        {
+            "type": "Microsoft.Compute/disks",
+            "apiVersion": "2023-04-02",
+            "name": "WEB1-DATA1",
+            "location": "eastus2",
+            "sku": {
+                "name": "StandardSSD_LRS"
+            },
+            "properties": {
+                "creationData": {
+                    "createOption": "Empty"
+                },
+                "diskSizeGB": 16
+            }
+        },
+        {
+            "type": "Microsoft.Compute/sshPublicKeys",
+            "apiVersion": "2024-11-01",
+            "name": "[parameters('sshPublicKeys_WEB1_key_name')]",
+            "location": "eastus2",
+            "properties": {
+                "publicKey": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQClKLmll3MgGXTQpo5vgcaDHZs/FsoufuDPhGMnfJiNxOVkQdKoxIYl/GvM7OwQkGHwWRrQ3qz6zgqArDRnfvWOOF/xzY9JzopJ7QT5dASjPsnZboTACL/BnNXKQf244lEgj85QF56307iLRVtW//7mwBLtdjo3B0G3a7f5MomO6NGaWA6XY765hOP1p8z/3g8ul7WMLN3Gz6/1ka3QvYMT6mirSAaRHnJGIUQqLLmZZP5hc1AZIvfsEp0GEPzcDXidEEPzSy/m8B+vk9LDS/F9rY+zXYZ3ep5BP9eUUj2Ab3SH57nFaKBheizKV0mkccjSPet1AFCXNHthQDvYnd26VXzo62ATGmpmxlFmxfES2AiQZ94yWUBDPKRG+ZZoSEHZoj12yPkV4RwOWLw6tlMyeIuCplfjX4j3bsOk7C3xQbvHHzSohlOK6WWQ5OgCIS+0OR8jlY+GDquT1c8c6jbWTaBq8YJZ84WDIperOVeEUDnd4l4VG2T/rj/OxyVB2M0= generated-by-azure"
+            }
+        },
+        {
+            "type": "Microsoft.Compute/sshPublicKeys",
+            "apiVersion": "2024-11-01",
+            "name": "[parameters('sshPublicKeys_WEB1_key_0123_name')]",
+            "location": "eastus2",
+            "properties": {
+                "publicKey": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDKRcEgnFtLT7xjxLXChJz4rUbSLkxNMJwIr9wDD/kxLK/rOsdz6nWdlkaPix0fmQ+h86vWh2Qs+z2n8mSZIhr/CyyF7x5nZYc0ry/1xcSYWrlglNDdbG43EfMO46NPV3lABlndiYryPLCzoqqtht0aJimFLpmoq5fKpVHgsA5DEkHB2VZ7GlwmVtFjrkzZWq6NU+JTrd5vQWZ80MBjqdhfpoXUxROGbCEYzY7P+CDjybdc4co1m58OU9gb59Q0RvW65H5hmgb3uznAYB+a0DEKnClegwA36RcFXWIbCViRvdv0yi9auOQn1rDOo8lOrn+UpVEIYFOg+/q3wfSdZs9tVbfFibwgoAMDyBPjdVzTP0LlVFuExfTEHFVZGSznHMTC6pfWETCQ324+FQlG1JiCldTjUbtyRZBK/ZlmLHcXmfYU0GU/Es1FF2vXQqxXhJOhi/Ruf17xyE19CFljRHD9QcdHpyLncoWw5Mu7yWqKZPIzIocpZv7KI730bazg2E0= generated-by-azure"
+            }
+        },
+        {
+            "type": "Microsoft.Network/publicIPAddresses",
+            "apiVersion": "2024-07-01",
+            "name": "[parameters('publicIPAddresses_WEB1_ip_name')]",
+            "location": "eastus2",
+            "sku": {
+                "name": "Standard",
+                "tier": "Regional"
+            },
+            "zones": [ "1" ],
+            "properties": {
+                "publicIPAddressVersion": "IPv4",
+                "publicIPAllocationMethod": "Static",
+                "idleTimeoutInMinutes": 4,
+                "ipTags": [],
+                "ddosSettings": {
+                    "protectionMode": "VirtualNetworkInherited"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Network/networkInterfaces",
+            "apiVersion": "2024-07-01",
+            "name": "[parameters('networkInterfaces_web1_z1_name')]",
+            "location": "eastus2",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicIPAddresses_WEB1_ip_name'))]",
+                "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_VNET_LAB_name'), 'SUBNET-WEB')]",
+                "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_NSG_WEB_name'))]",
+                "[resourceId('Microsoft.Network/loadBalancers', 'WEB1and2-loadbalancer')]"
+            ],
+            "kind": "Regular",
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "id": "[concat(resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaces_web1_z1_name')), '/ipConfigurations/ipconfig1')]",
+                        "type": "Microsoft.Network/networkInterfaces/ipConfigurations",
+                        "dependsOn": [
+                            "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicIPAddresses_WEB1_ip_name'))]",
+                            "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_VNET_LAB_name'), 'SUBNET-WEB')]",
+                            "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_NSG_WEB_name'))]",
+                            "[resourceId('Microsoft.Network/loadBalancers', 'WEB1and2-loadbalancer')]"
+                        ],
+                        "properties": {
+                            "loadBalancerBackendAddressPools": [
+                                {
+                                    "id": "[concat(resourceId('Microsoft.Network/loadBalancers', 'WEB1and2-loadbalancer'), '/backendAddressPools/loadbalancer-Backend')]"
+                                }
+                            ],
+                            "privateIPAllocationMethod": "Dynamic",
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicIPAddresses_WEB1_ip_name'))]",
+                                "properties": {
+                                    "deleteOption": "Detach"
+                                }
+                            },
+                            "subnet": {
+                                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_VNET_LAB_name'), 'SUBNET-WEB')]"
+                            },
+                            "primary": true,
+                            "privateIPAddressVersion": "IPv4"
+                        }
+                    }
+                ],
+                "dnsSettings": {
+                    "dnsServers": []
+                },
+                "enableAcceleratedNetworking": true,
+                "enableIPForwarding": false,
+                "disableTcpStateTracking": false,
+                "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_NSG_WEB_name'))]"
+                },
+                "nicType": "Standard",
+                "auxiliaryMode": "None",
+                "auxiliarySku": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Compute/virtualMachines",
+            "apiVersion": "2024-11-01",
+            "name": "[parameters('virtualMachines_WEB1_name')]",
+            "location": "eastus2",
+            "dependsOn": [
+                "[resourceId('Microsoft.Compute/disks', 'WEB1-DATA1')]",
+                "[resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaces_web1_z1_name'))]"
+            ],
+            "zones": [ "1" ],
+            "properties": {
+                "hardwareProfile": {
+                    "vmSize": "Standard_D2s_v3"
+                },
+                "additionalCapabilities": {
+                    "hibernationEnabled": false
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "canonical",
+                        "offer": "0001-com-ubuntu-server-jammy",
+                        "sku": "22_04-lts-gen2",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "osType": "Linux",
+                        "name": "[concat(parameters('virtualMachines_WEB1_name'), '_OsDisk_1_a1951b70915b40d682e77d7189f05b41')]",
+                        "createOption": "FromImage",
+                        "caching": "ReadWrite",
+                        "managedDisk": {
+                            "storageAccountType": "Premium_LRS"
+                        },
+                        "deleteOption": "Delete",
+                        "diskSizeGB": 30
+                    },
+                    "dataDisks": [
+                        {
+                            "lun": 0,
+                            "name": "[concat(parameters('virtualMachines_WEB1_name'), '-DATA1')]",
+                            "createOption": "Attach",
+                            "caching": "ReadWrite",
+                            "writeAcceleratorEnabled": false,
+                            "managedDisk": {
+                                "storageAccountType": "StandardSSD_LRS",
+                                "id": "[resourceId('Microsoft.Compute/disks', 'WEB1-DATA1')]"
+                            },
+                            "deleteOption": "Detach",
+                            "diskSizeGB": 16,
+                            "toBeDetached": false
+                        }
+                    ],
+                    "diskControllerType": "SCSI"
+                },
+                "osProfile": {
+                    "computerName": "[parameters('virtualMachines_WEB1_name')]",
+                    "adminUsername": "azureuser",
+                    "linuxConfiguration": {
+                        "disablePasswordAuthentication": true,
+                        "ssh": {
+                            "publicKeys": [
+                                {
+                                    "path": "/home/azureuser/.ssh/authorized_keys",
+                                    "keyData": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDKRcEgnFtLT7xjxLXChJz4rUbSLkxNMJwIr9wDD/kxLK/rOsdz6nWdlkaPix0fmQ+h86vWh2Qs+z2n8mSZIhr/CyyF7x5nZYc0ry/1xcSYWrlglNDdbG43EfMO46NPV3lABlndiYryPLCzoqqtht0aJimFLpmoq5fKpVHgsA5DEkHB2VZ7GlwmVtFjrkzZWq6NU+JTrd5vQWZ80MBjqdhfpoXUxROGbCEYzY7P+CDjybdc4co1m58OU9gb59Q0RvW65H5hmgb3uznAYB+a0DEKnClegwA36RcFXWIbCViRvdv0yi9auOQn1rDOo8lOrn+UpVEIYFOg+/q3wfSdZs9tVbfFibwgoAMDyBPjdVzTP0LlVFuExfTEHFVZGSznHMTC6pfWETCQ324+FQlG1JiCldTjUbtyRZBK/ZlmLHcXmfYU0GU/Es1FF2vXQqxXhJOhi/Ruf17xyE19CFljRHD9QcdHpyLncoWw5Mu7yWqKZPIzIocpZv7KI730bazg2E0= generated-by-azure"
+                                }
+                            ]
+                        },
+                        "provisionVMAgent": true,
+                        "patchSettings": {
+                            "patchMode": "AutomaticByPlatform",
+                            "automaticByPlatformSettings": {
+                                "rebootSetting": "IfRequired"
+                            },
+                            "assessmentMode": "ImageDefault"
+                        }
+                    },
+                    "secrets": [],
+                    "allowExtensionOperations": true
+                },
+                "securityProfile": {
+                    "uefiSettings": {
+                        "secureBootEnabled": true,
+                        "vTpmEnabled": true
+                    },
+                    "securityType": "TrustedLaunch"
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaces_web1_z1_name'))]",
+                            "properties": {
+                                "deleteOption": "Detach"
+                            }
+                        }
+                    ]
+                },
+                "diagnosticsProfile": {
+                    "bootDiagnostics": {
+                        "enabled": true
+                    }
+                }
+            }
+        },
+
+
+        {
+            "type": "Microsoft.Compute/disks",
+            "apiVersion": "2023-04-02",
+            "name": "WEB2-DATA1",
+            "location": "eastus2",
+            "zones": [ "1" ],
+            "sku": {
+                "name": "StandardSSD_LRS"
+            },
+            "properties": {
+                "creationData": {
+                    "createOption": "Empty"
+                },
+                "diskSizeGB": 16
+            }
+        },
+        {
+            "type": "Microsoft.Compute/sshPublicKeys",
+            "apiVersion": "2024-11-01",
+            "name": "[parameters('sshPublicKeys_WEB2_key_name')]",
+            "location": "eastus2",
+            "properties": {
+                "publicKey": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQClKLmll3MgGXTQpo5vgcaDHZs/FsoufuDPhGMnfJiNxOVkQdKoxIYl/GvM7OwQkGHwWRrQ3qz6zgqArDRnfvWOOF/xzY9JzopJ7QT5dASjPsnZboTACL/BnNXKQf244lEgj85QF56307iLRVtW//7mwBLtdjo3B0G3a7f5MomO6NGaWA6XY765hOP1p8z/3g8ul7WMLN3Gz6/1ka3QvYMT6mirSAaRHnJGIUQqLLmZZP5hc1AZIvfsEp0GEPzcDXidEEPzSy/m8B+vk9LDS/F9rY+zXYZ3ep5BP9eUUj2Ab3SH57nFaKBheizKV0mkccjSPet1AFCXNHthQDvYnd26VXzo62ATGmpmxlFmxfES2AiQZ94yWUBDPKRG+ZZoSEHZoj12yPkV4RwOWLw6tlMyeIuCplfjX4j3bsOk7C3xQbvHHzSohlOK6WWQ5OgCIS+0OR8jlY+GDquT1c8c6jbWTaBq8YJZ84WDIperOVeEUDnd4l4VG2T/rj/OxyVB2M0= generated-by-azure"
+            }
+        },
+        {
+            "type": "Microsoft.Compute/sshPublicKeys",
+            "apiVersion": "2024-11-01",
+            "name": "[parameters('sshPublicKeys_WEB2_key_0123_name')]",
+            "location": "eastus2",
+            "properties": {
+                "publicKey": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDKRcEgnFtLT7xjxLXChJz4rUbSLkxNMJwIr9wDD/kxLK/rOsdz6nWdlkaPix0fmQ+h86vWh2Qs+z2n8mSZIhr/CyyF7x5nZYc0ry/1xcSYWrlglNDdbG43EfMO46NPV3lABlndiYryPLCzoqqtht0aJimFLpmoq5fKpVHgsA5DEkHB2VZ7GlwmVtFjrkzZWq6NU+JTrd5vQWZ80MBjqdhfpoXUxROGbCEYzY7P+CDjybdc4co1m58OU9gb59Q0RvW65H5hmgb3uznAYB+a0DEKnClegwA36RcFXWIbCViRvdv0yi9auOQn1rDOo8lOrn+UpVEIYFOg+/q3wfSdZs9tVbfFibwgoAMDyBPjdVzTP0LlVFuExfTEHFVZGSznHMTC6pfWETCQ324+FQlG1JiCldTjUbtyRZBK/ZlmLHcXmfYU0GU/Es1FF2vXQqxXhJOhi/Ruf17xyE19CFljRHD9QcdHpyLncoWw5Mu7yWqKZPIzIocpZv7KI730bazg2E0= generated-by-azure"
+            }
+        },
+        {
+            "type": "Microsoft.Network/publicIPAddresses",
+            "apiVersion": "2024-07-01",
+            "name": "[parameters('publicIPAddresses_WEB2_ip_name')]",
+            "location": "eastus2",
+            "sku": {
+                "name": "Standard",
+                "tier": "Regional"
+            },
+            "zones": [ "1" ],
+            "properties": {
+                "publicIPAddressVersion": "IPv4",
+                "publicIPAllocationMethod": "Static",
+                "idleTimeoutInMinutes": 4,
+                "ipTags": [],
+                "ddosSettings": {
+                    "protectionMode": "VirtualNetworkInherited"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Network/networkInterfaces",
+            "apiVersion": "2024-07-01",
+            "name": "[parameters('networkInterfaces_web2_z1_name')]",
+            "location": "eastus2",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicIPAddresses_WEB2_ip_name'))]",
+                "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_VNET_LAB_name'), 'SUBNET-WEB')]",
+                "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_NSG_WEB_name'))]",
+                "[resourceId('Microsoft.Network/loadBalancers', 'WEB1and2-loadbalancer')]"
+            ],
+            "kind": "Regular",
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "id": "[concat(resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaces_web2_z1_name')), '/ipConfigurations/ipconfig1')]",
+                        "type": "Microsoft.Network/networkInterfaces/ipConfigurations",
+                        "properties": {
+                            "privateIPAllocationMethod": "Dynamic",
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicIPAddresses_WEB2_ip_name'))]",
+                                "properties": {
+                                    "deleteOption": "Detach"
+                                }
+                            },
+                            "subnet": {
+                                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_VNET_LAB_name'), 'SUBNET-WEB')]"
+                            },
+                            "primary": true,
+                            "privateIPAddressVersion": "IPv4"
+                        }
+                    }
+                ],
+                "dnsSettings": {
+                    "dnsServers": []
+                },
+                "enableAcceleratedNetworking": true,
+                "enableIPForwarding": false,
+                "disableTcpStateTracking": false,
+                "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_NSG_WEB_name'))]"
+                },
+                "nicType": "Standard",
+                "auxiliaryMode": "None",
+                "auxiliarySku": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Compute/virtualMachines",
+            "apiVersion": "2024-11-01",
+            "name": "[parameters('virtualMachines_WEB2_name')]",
+            "location": "eastus2",
+            "dependsOn": [
+                "[resourceId('Microsoft.Compute/disks', 'WEB2-DATA1')]",
+                "[resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaces_web2_z1_name'))]"
+            ],
+            "zones": [ "1" ],
+            "properties": {
+                "hardwareProfile": {
+                    "vmSize": "Standard_D2s_v3"
+                },
+                "additionalCapabilities": {
+                    "hibernationEnabled": false
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "canonical",
+                        "offer": "0001-com-ubuntu-server-jammy",
+                        "sku": "22_04-lts-gen2",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "osType": "Linux",
+                        "name": "[concat(parameters('virtualMachines_WEB2_name'), '_OsDisk_1_a1951b70915b40d682e77d7189f05b41')]",
+                        "createOption": "FromImage",
+                        "caching": "ReadWrite",
+                        "managedDisk": {
+                            "storageAccountType": "Premium_LRS"
+                        },
+                        "deleteOption": "Delete",
+                        "diskSizeGB": 30
+                    },
+                    "dataDisks": [
+                        {
+                            "lun": 0,
+                            "name": "[concat(parameters('virtualMachines_WEB2_name'), '-DATA1')]",
+                            "createOption": "Attach",
+                            "caching": "ReadWrite",
+                            "writeAcceleratorEnabled": false,
+                            "managedDisk": {
+                                "storageAccountType": "StandardSSD_LRS",
+                                "id": "[resourceId('Microsoft.Compute/disks', 'WEB2-DATA1')]"
+                            },
+                            "deleteOption": "Detach",
+                            "diskSizeGB": 16,
+                            "toBeDetached": false
+                        }
+                    ],
+                    "diskControllerType": "SCSI"
+                },
+                "osProfile": {
+                    "computerName": "[parameters('virtualMachines_WEB2_name')]",
+                    "adminUsername": "azureuser",
+                    "linuxConfiguration": {
+                        "disablePasswordAuthentication": true,
+                        "ssh": {
+                            "publicKeys": [
+                                {
+                                    "path": "/home/azureuser/.ssh/authorized_keys",
+                                    "keyData": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDKRcEgnFtLT7xjxLXChJz4rUbSLkxNMJwIr9wDD/kxLK/rOsdz6nWdlkaPix0fmQ+h86vWh2Qs+z2n8mSZIhr/CyyF7x5nZYc0ry/1xcSYWrlglNDdbG43EfMO46NPV3lABlndiYryPLCzoqqtht0aJimFLpmoq5fKpVHgsA5DEkHB2VZ7GlwmVtFjrkzZWq6NU+JTrd5vQWZ80MBjqdhfpoXUxROGbCEYzY7P+CDjybdc4co1m58OU9gb59Q0RvW65H5hmgb3uznAYB+a0DEKnClegwA36RcFXWIbCViRvdv0yi9auOQn1rDOo8lOrn+UpVEIYFOg+/q3wfSdZs9tVbfFibwgoAMDyBPjdVzTP0LlVFuExfTEHFVZGSznHMTC6pfWETCQ324+FQlG1JiCldTjUbtyRZBK/ZlmLHcXmfYU0GU/Es1FF2vXQqxXhJOhi/Ruf17xyE19CFljRHD9QcdHpyLncoWw5Mu7yWqKZPIzIocpZv7KI730bazg2E0= generated-by-azure"
+                                }
+                            ]
+                        },
+                        "provisionVMAgent": true,
+                        "patchSettings": {
+                            "patchMode": "AutomaticByPlatform",
+                            "automaticByPlatformSettings": {
+                                "rebootSetting": "IfRequired"
+                            },
+                            "assessmentMode": "ImageDefault"
+                        }
+                    },
+                    "secrets": [],
+                    "allowExtensionOperations": true
+                },
+                "securityProfile": {
+                    "uefiSettings": {
+                        "secureBootEnabled": true,
+                        "vTpmEnabled": true
+                    },
+                    "securityType": "TrustedLaunch"
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaces_web2_z1_name'))]",
+                            "properties": {
+                                "deleteOption": "Detach"
+                            }
+                        }
+                    ]
+                },
+                "diagnosticsProfile": {
+                    "bootDiagnostics": {
+                        "enabled": true
+                    }
+                }
+            }
+        }
+    ]
+}
