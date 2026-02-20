@@ -57,82 +57,80 @@
             "type": "Microsoft.Network/publicIPAddresses",
             "apiVersion": "2023-04-01",
             "name": "myLBPublicIP",
-            "location": "eastus",
+            "location": "westus",
             "sku": {
                 "name": "Standard"
             },
-            "zones": ["1"],
             "properties": {
                 "publicIPAllocationMethod": "Static"
             }
         },
         {
-        "type": "Microsoft.Network/loadBalancers",
-        "apiVersion": "2023-04-01",
-        "name": "WEB1and2-loadbalancer",
-        "location": "eastus",
-        "sku": {
-            "name": "Standard"
+            "type": "Microsoft.Network/loadBalancers",
+            "apiVersion": "2023-04-01",
+            "name": "WEB1and2-loadbalancer",
+            "location": "westus",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', 'myLBPublicIP')]"
+            ],
+            "sku": {
+                "name": "Standard"
+            },
+            "properties": {
+                "frontendIPConfigurations": [
+                    {
+                        "name": "loadbalancer-Frontend",
+                        "properties": {
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', 'myLBPublicIP')]"
+                            }
+                        }
+                    }
+                ],
+                "backendAddressPools": [
+                    {
+                        "name": "loadbalancer-Backend"
+                    }
+                ],
+                "probes": [
+                    {
+                        "name": "loadbalancer-Probe",
+                        "properties": {
+                            "protocol": "Tcp",
+                            "port": 80,
+                            "intervalInSeconds": 15,
+                            "numberOfProbes": 2
+                        }
+                    }
+                ],
+                "loadBalancingRules": [
+                    {
+                        "name": "loadbalancer-Rules",
+                        "properties": {
+                            "frontendIPConfiguration": {
+                                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', 'WEB1and2-loadbalancer'), '/frontendIPConfigurations/loadbalancer-Frontend')]"
+                            },
+                            "backendAddressPool": {
+                                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', 'WEB1and2-loadbalancer'), '/backendAddressPools/loadbalancer-Backend')]"
+                            },
+                            "probe": {
+                                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', 'WEB1and2-loadbalancer'), '/probes/loadbalancer-Probe')]"
+                            },
+                            "protocol": "Tcp",
+                            "frontendPort": 80,
+                            "backendPort": 80,
+                            "idleTimeoutInMinutes": 4,
+                            "loadDistribution": "Default"
+                        }
+                    }
+                ]
+            }
         },
-        "dependsOn": [
-            "[resourceId('Microsoft.Network/publicIPAddresses', 'myLBPublicIP')]"
-        ],
-        "properties": {
-            "frontendIPConfigurations": [
-            {
-                "name": "loadbalancer-Frontend",
-                "properties": {
-                "publicIPAddress": {
-                    "id": "[resourceId('Microsoft.Network/publicIPAddresses', 'myLBPublicIP')]"
-                }
-                }
-            }
-            ],
-            "backendAddressPools": [
-            {
-                "name": "loadbalancer-Backend"
-            }
-            ],
-            "probes": [
-            {
-                "name": "loadbalancer-Probe",
-                "properties": {
-                "protocol": "Tcp",
-                "port": 80,
-                "intervalInSeconds": 15,
-                "numberOfProbes": 2
-                }
-            }
-            ],
-            "loadBalancingRules": [
-            {
-                "name": "loadbalancer-Rules",
-                "properties": {
-                "frontendIPConfiguration": {
-                    "id": "[concat(resourceId('Microsoft.Network/loadBalancers', 'WEB1and2-loadbalancer'), '/frontendIPConfigurations/loadbalancer-Frontend')]"
-                },
-                "backendAddressPool": {
-                    "id": "[concat(resourceId('Microsoft.Network/loadBalancers', 'WEB1and2-loadbalancer'), '/backendAddressPools/loadbalancer-Backend')]"
-                },
-                "probe": {
-                    "id": "[concat(resourceId('Microsoft.Network/loadBalancers', 'WEB1and2-loadbalancer'), '/probes/loadbalancer-Probe')]"
-                },
-                "protocol": "Tcp",
-                "frontendPort": 80,
-                "backendPort": 80,
-                "idleTimeoutInMinutes": 4,
-                "loadDistribution": "Default"
-                }
-            }
-            ]
-        }
-        },
-
         {
             "type": "Microsoft.Network/networkSecurityGroups",
             "apiVersion": "2024-07-01",
             "name": "[parameters('networkSecurityGroups_NSG_WEB_name')]",
-            "location": "eastus",
+            "location": "westus",
             "properties": {
                 "securityRules": [
                     {
@@ -224,7 +222,7 @@
             "type": "Microsoft.Network/virtualNetworks",
             "apiVersion": "2024-07-01",
             "name": "[parameters('virtualNetworks_VNET_LAB_name')]",
-            "location": "eastus",
+            "location": "westus",
             "properties": {
                 "addressSpace": {
                     "addressPrefixes": [
@@ -300,13 +298,11 @@
                 "privateLinkServiceNetworkPolicies": "Enabled"
             }
         },
-
-
         {
             "type": "Microsoft.Compute/disks",
             "apiVersion": "2023-04-02",
             "name": "WEB1-DATA1",
-            "location": "eastus",
+            "location": "westus",
             "sku": {
                 "name": "StandardSSD_LRS"
             },
@@ -321,7 +317,7 @@
             "type": "Microsoft.Compute/sshPublicKeys",
             "apiVersion": "2024-11-01",
             "name": "[parameters('sshPublicKeys_WEB1_key_name')]",
-            "location": "eastus",
+            "location": "westus",
             "properties": {
                 "publicKey": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQClKLmll3MgGXTQpo5vgcaDHZs/FsoufuDPhGMnfJiNxOVkQdKoxIYl/GvM7OwQkGHwWRrQ3qz6zgqArDRnfvWOOF/xzY9JzopJ7QT5dASjPsnZboTACL/BnNXKQf244lEgj85QF56307iLRVtW//7mwBLtdjo3B0G3a7f5MomO6NGaWA6XY765hOP1p8z/3g8ul7WMLN3Gz6/1ka3QvYMT6mirSAaRHnJGIUQqLLmZZP5hc1AZIvfsEp0GEPzcDXidEEPzSy/m8B+vk9LDS/F9rY+zXYZ3ep5BP9eUUj2Ab3SH57nFaKBheizKV0mkccjSPet1AFCXNHthQDvYnd26VXzo62ATGmpmxlFmxfES2AiQZ94yWUBDPKRG+ZZoSEHZoj12yPkV4RwOWLw6tlMyeIuCplfjX4j3bsOk7C3xQbvHHzSohlOK6WWQ5OgCIS+0OR8jlY+GDquT1c8c6jbWTaBq8YJZ84WDIperOVeEUDnd4l4VG2T/rj/OxyVB2M0= generated-by-azure"
             }
@@ -330,7 +326,7 @@
             "type": "Microsoft.Compute/sshPublicKeys",
             "apiVersion": "2024-11-01",
             "name": "[parameters('sshPublicKeys_WEB1_key_0123_name')]",
-            "location": "eastus",
+            "location": "westus",
             "properties": {
                 "publicKey": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDKRcEgnFtLT7xjxLXChJz4rUbSLkxNMJwIr9wDD/kxLK/rOsdz6nWdlkaPix0fmQ+h86vWh2Qs+z2n8mSZIhr/CyyF7x5nZYc0ry/1xcSYWrlglNDdbG43EfMO46NPV3lABlndiYryPLCzoqqtht0aJimFLpmoq5fKpVHgsA5DEkHB2VZ7GlwmVtFjrkzZWq6NU+JTrd5vQWZ80MBjqdhfpoXUxROGbCEYzY7P+CDjybdc4co1m58OU9gb59Q0RvW65H5hmgb3uznAYB+a0DEKnClegwA36RcFXWIbCViRvdv0yi9auOQn1rDOo8lOrn+UpVEIYFOg+/q3wfSdZs9tVbfFibwgoAMDyBPjdVzTP0LlVFuExfTEHFVZGSznHMTC6pfWETCQ324+FQlG1JiCldTjUbtyRZBK/ZlmLHcXmfYU0GU/Es1FF2vXQqxXhJOhi/Ruf17xyE19CFljRHD9QcdHpyLncoWw5Mu7yWqKZPIzIocpZv7KI730bazg2E0= generated-by-azure"
             }
@@ -339,12 +335,11 @@
             "type": "Microsoft.Network/publicIPAddresses",
             "apiVersion": "2024-07-01",
             "name": "[parameters('publicIPAddresses_WEB1_ip_name')]",
-            "location": "eastus",
+            "location": "westus",
             "sku": {
                 "name": "Standard",
                 "tier": "Regional"
             },
-            "zones": [ "1" ],
             "properties": {
                 "publicIPAddressVersion": "IPv4",
                 "publicIPAllocationMethod": "Static",
@@ -359,7 +354,7 @@
             "type": "Microsoft.Network/networkInterfaces",
             "apiVersion": "2024-07-01",
             "name": "[parameters('networkInterfaces_web1_z1_name')]",
-            "location": "eastus",
+            "location": "westus",
             "dependsOn": [
                 "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicIPAddresses_WEB1_ip_name'))]",
                 "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_VNET_LAB_name'), 'SUBNET-WEB')]",
@@ -373,12 +368,6 @@
                         "name": "ipconfig1",
                         "id": "[concat(resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaces_web1_z1_name')), '/ipConfigurations/ipconfig1')]",
                         "type": "Microsoft.Network/networkInterfaces/ipConfigurations",
-                        "dependsOn": [
-                            "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicIPAddresses_WEB1_ip_name'))]",
-                            "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_VNET_LAB_name'), 'SUBNET-WEB')]",
-                            "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_NSG_WEB_name'))]",
-                            "[resourceId('Microsoft.Network/loadBalancers', 'WEB1and2-loadbalancer')]"
-                        ],
                         "properties": {
                             "loadBalancerBackendAddressPools": [
                                 {
@@ -418,12 +407,11 @@
             "type": "Microsoft.Compute/virtualMachines",
             "apiVersion": "2024-11-01",
             "name": "[parameters('virtualMachines_WEB1_name')]",
-            "location": "eastus",
+            "location": "westus",
             "dependsOn": [
                 "[resourceId('Microsoft.Compute/disks', 'WEB1-DATA1')]",
                 "[resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaces_web1_z1_name'))]"
             ],
-            "zones": [ "1" ],
             "properties": {
                 "hardwareProfile": {
                     "vmSize": "Standard_D2s_v3"
@@ -516,14 +504,11 @@
                 }
             }
         },
-
-
         {
             "type": "Microsoft.Compute/disks",
             "apiVersion": "2023-04-02",
             "name": "WEB2-DATA1",
-            "location": "eastus",
-            "zones": [ "1" ],
+            "location": "westus",
             "sku": {
                 "name": "StandardSSD_LRS"
             },
@@ -538,7 +523,7 @@
             "type": "Microsoft.Compute/sshPublicKeys",
             "apiVersion": "2024-11-01",
             "name": "[parameters('sshPublicKeys_WEB2_key_name')]",
-            "location": "eastus",
+            "location": "westus",
             "properties": {
                 "publicKey": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQClKLmll3MgGXTQpo5vgcaDHZs/FsoufuDPhGMnfJiNxOVkQdKoxIYl/GvM7OwQkGHwWRrQ3qz6zgqArDRnfvWOOF/xzY9JzopJ7QT5dASjPsnZboTACL/BnNXKQf244lEgj85QF56307iLRVtW//7mwBLtdjo3B0G3a7f5MomO6NGaWA6XY765hOP1p8z/3g8ul7WMLN3Gz6/1ka3QvYMT6mirSAaRHnJGIUQqLLmZZP5hc1AZIvfsEp0GEPzcDXidEEPzSy/m8B+vk9LDS/F9rY+zXYZ3ep5BP9eUUj2Ab3SH57nFaKBheizKV0mkccjSPet1AFCXNHthQDvYnd26VXzo62ATGmpmxlFmxfES2AiQZ94yWUBDPKRG+ZZoSEHZoj12yPkV4RwOWLw6tlMyeIuCplfjX4j3bsOk7C3xQbvHHzSohlOK6WWQ5OgCIS+0OR8jlY+GDquT1c8c6jbWTaBq8YJZ84WDIperOVeEUDnd4l4VG2T/rj/OxyVB2M0= generated-by-azure"
             }
@@ -547,7 +532,7 @@
             "type": "Microsoft.Compute/sshPublicKeys",
             "apiVersion": "2024-11-01",
             "name": "[parameters('sshPublicKeys_WEB2_key_0123_name')]",
-            "location": "eastus",
+            "location": "westus",
             "properties": {
                 "publicKey": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDKRcEgnFtLT7xjxLXChJz4rUbSLkxNMJwIr9wDD/kxLK/rOsdz6nWdlkaPix0fmQ+h86vWh2Qs+z2n8mSZIhr/CyyF7x5nZYc0ry/1xcSYWrlglNDdbG43EfMO46NPV3lABlndiYryPLCzoqqtht0aJimFLpmoq5fKpVHgsA5DEkHB2VZ7GlwmVtFjrkzZWq6NU+JTrd5vQWZ80MBjqdhfpoXUxROGbCEYzY7P+CDjybdc4co1m58OU9gb59Q0RvW65H5hmgb3uznAYB+a0DEKnClegwA36RcFXWIbCViRvdv0yi9auOQn1rDOo8lOrn+UpVEIYFOg+/q3wfSdZs9tVbfFibwgoAMDyBPjdVzTP0LlVFuExfTEHFVZGSznHMTC6pfWETCQ324+FQlG1JiCldTjUbtyRZBK/ZlmLHcXmfYU0GU/Es1FF2vXQqxXhJOhi/Ruf17xyE19CFljRHD9QcdHpyLncoWw5Mu7yWqKZPIzIocpZv7KI730bazg2E0= generated-by-azure"
             }
@@ -556,12 +541,11 @@
             "type": "Microsoft.Network/publicIPAddresses",
             "apiVersion": "2024-07-01",
             "name": "[parameters('publicIPAddresses_WEB2_ip_name')]",
-            "location": "eastus",
+            "location": "westus",
             "sku": {
                 "name": "Standard",
                 "tier": "Regional"
             },
-            "zones": [ "1" ],
             "properties": {
                 "publicIPAddressVersion": "IPv4",
                 "publicIPAllocationMethod": "Static",
@@ -576,7 +560,7 @@
             "type": "Microsoft.Network/networkInterfaces",
             "apiVersion": "2024-07-01",
             "name": "[parameters('networkInterfaces_web2_z1_name')]",
-            "location": "eastus",
+            "location": "westus",
             "dependsOn": [
                 "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicIPAddresses_WEB2_ip_name'))]",
                 "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_VNET_LAB_name'), 'SUBNET-WEB')]",
@@ -624,12 +608,11 @@
             "type": "Microsoft.Compute/virtualMachines",
             "apiVersion": "2024-11-01",
             "name": "[parameters('virtualMachines_WEB2_name')]",
-            "location": "eastus",
+            "location": "westus",
             "dependsOn": [
                 "[resourceId('Microsoft.Compute/disks', 'WEB2-DATA1')]",
                 "[resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaces_web2_z1_name'))]"
             ],
-            "zones": [ "1" ],
             "properties": {
                 "hardwareProfile": {
                     "vmSize": "Standard_D2s_v3"
