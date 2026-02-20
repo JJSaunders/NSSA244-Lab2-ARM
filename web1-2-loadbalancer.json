@@ -575,6 +575,11 @@
                         "id": "[concat(resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaces_web2_z1_name')), '/ipConfigurations/ipconfig1')]",
                         "type": "Microsoft.Network/networkInterfaces/ipConfigurations",
                         "properties": {
+                            "loadBalancerBackendAddressPools": [
+                                {
+                                    "id": "[concat(resourceId('Microsoft.Network/loadBalancers', 'WEB1and2-loadbalancer'), '/backendAddressPools/loadbalancer-Backend')]"
+                                }
+                            ],
                             "privateIPAllocationMethod": "Dynamic",
                             "publicIPAddress": {
                                 "id": "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicIPAddresses_WEB2_ip_name'))]",
